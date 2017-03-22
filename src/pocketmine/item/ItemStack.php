@@ -69,7 +69,6 @@ class ItemStack{
 		$this->type = $type;
 		$this->maxSize = $this->type->getMaxStackSize();
 		$this->setCount($count);
-		$this->count = $count;
 		$this->nbt = $nbt;
 	}
 

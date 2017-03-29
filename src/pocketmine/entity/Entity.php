@@ -470,7 +470,7 @@ abstract class Entity extends Location implements Metadatable{
 		if(isset($this->effects[$effect->getId()])){
 			$oldEffect = $this->effects[$effect->getId()];
 			if(
-				abs($effect->getAmplifier()) <= ($oldEffect->getAmplifier())
+				abs($effect->getAmplifier()) < ($oldEffect->getAmplifier())
 				or (abs($effect->getAmplifier()) === abs($oldEffect->getAmplifier())
 					and $effect->getDuration() < $oldEffect->getDuration())
 			){
@@ -708,11 +708,13 @@ abstract class Entity extends Location implements Metadatable{
 	/**
 	 * @param Player $player
 	 */
-	public function despawnFrom(Player $player){
+	public function despawnFrom(Player $player, bool $send = true){
 		if(isset($this->hasSpawned[$player->getLoaderId()])){
-			$pk = new RemoveEntityPacket();
-			$pk->eid = $this->id;
-			$player->dataPacket($pk);
+			if($send){
+				$pk = new RemoveEntityPacket();
+				$pk->eid = $this->id;
+				$player->dataPacket($pk);
+			}
 			unset($this->hasSpawned[$player->getLoaderId()]);
 		}
 	}

@@ -157,6 +157,9 @@ class Server{
 	private $currentTPS = 20;
 	private $currentUse = 0;
 
+	/** @var bool */
+	private $doTitleTick = true;
+
 	private $sendUsageTicker = 0;
 
 	private $dispatchSignals = false;
@@ -1455,6 +1458,8 @@ class Server{
 			$this->alwaysTickPlayers = (int) $this->getProperty("level-settings.always-tick-players", false);
 			$this->baseTickRate = (int) $this->getProperty("level-settings.base-tick-rate", 1);
 
+			$this->doTitleTick = (bool) $this->getProperty("console.title-tick", true);
+
 			$this->scheduler = new ServerScheduler();
 
 			if($this->getConfigBoolean("enable-rcon", false) === true){
@@ -2027,9 +2032,8 @@ class Server{
 		$errline = $e->getLine();
 
 		$type = ($errno === E_ERROR or $errno === E_USER_ERROR) ? \LogLevel::ERROR : (($errno === E_USER_WARNING or $errno === E_WARNING) ? \LogLevel::WARNING : \LogLevel::NOTICE);
-		if(($pos = strpos($errstr, "\n")) !== false){
-			$errstr = substr($errstr, 0, $pos);
-		}
+
+		$errstr = preg_replace('/\s+/', ' ', trim($errstr));
 
 		$errfile = cleanPath($errfile);
 
@@ -2041,7 +2045,7 @@ class Server{
 			"fullFile" => $e->getFile(),
 			"file" => $errfile,
 			"line" => $errline,
-			"trace" => @getTrace(1, $trace)
+			"trace" => getTrace(0, $trace)
 		];
 
 		global $lastExceptionError, $lastError;
@@ -2252,7 +2256,9 @@ class Server{
 	}
 
 	public function sendUsage($type = SendUsageTask::TYPE_STATUS){
-		$this->scheduler->scheduleAsyncTask(new SendUsageTask($this, $type, $this->uniquePlayers));
+		if($this->getProperty("anonymous-statistics.enabled", true)){
+			$this->scheduler->scheduleAsyncTask(new SendUsageTask($this, $type, $this->uniquePlayers));
+		}
 		$this->uniquePlayers = [];
 	}
 
@@ -2286,10 +2292,6 @@ class Server{
 	}
 
 	private function titleTick(){
-		if(!Terminal::hasFormattingCodes()){
-			return;
-		}
-
 		$d = Utils::getRealMemoryUsage();
 
 		$u = Utils::getMemoryUsage(true);
@@ -2365,7 +2367,9 @@ class Server{
 		}
 
 		if(($this->tickCounter & 0b1111) === 0){
-			$this->titleTick();
+			if($this->doTitleTick and Terminal::hasFormattingCodes()){
+				$this->titleTick();
+			}
 			$this->currentTPS = 20;
 			$this->currentUse = 0;
 
@@ -2429,5 +2433,14 @@ class Server{
 		}
 
 		return true;
+	}
+
+	/**
+	 * Called when something attempts to serialize the server instance.
+	 *
+	 * @throws \BadMethodCallException because Server instances cannot be serialized
+	 */
+	public function __sleep(){
+		throw new \BadMethodCallException("Cannot serialize Server instance");
 	}
 }

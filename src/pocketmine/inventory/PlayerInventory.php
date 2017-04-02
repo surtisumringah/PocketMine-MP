@@ -213,7 +213,7 @@ class PlayerInventory extends BaseInventory{
 		$pk->hotbarSlot = $this->getHeldItemIndex();
 
 		if(!is_array($target)){
-			$target->dataPacket($pk);
+			$target->sendPacket($pk);
 			if($target === $this->getHolder()){
 				$this->sendSlot($this->getHeldItemSlot(), $target);
 			}
@@ -401,9 +401,9 @@ class PlayerInventory extends BaseInventory{
 				$pk2 = new ContainerSetContentPacket();
 				$pk2->windowid = ContainerSetContentPacket::SPECIAL_ARMOR;
 				$pk2->slots = $armor;
-				$player->dataPacket($pk2);
+				$player->sendPacket($pk2);
 			}else{
-				$player->dataPacket($pk);
+				$player->sendPacket($pk);
 			}
 		}
 	}
@@ -450,9 +450,9 @@ class PlayerInventory extends BaseInventory{
 				$pk2->windowid = ContainerSetContentPacket::SPECIAL_ARMOR;
 				$pk2->slot = $index - $this->getSize();
 				$pk2->item = $this->getItem($index);
-				$player->dataPacket($pk2);
+				$player->sendPacket($pk2);
 			}else{
-				$player->dataPacket($pk);
+				$player->sendPacket($pk);
 			}
 		}
 	}
@@ -490,7 +490,7 @@ class PlayerInventory extends BaseInventory{
 				continue;
 			}
 			$pk->windowid = $id;
-			$player->dataPacket(clone $pk);
+			$player->sendPacket(clone $pk);
 		}
 	}
 
@@ -502,7 +502,7 @@ class PlayerInventory extends BaseInventory{
 				$pk->slots[$i] = clone $item;
 			}
 		}
-		$this->getHolder()->dataPacket($pk);
+		$this->getHolder()->sendPacket($pk);
 	}
 
 	/**
@@ -522,14 +522,14 @@ class PlayerInventory extends BaseInventory{
 			if($player === $this->getHolder()){
 				/** @var Player $player */
 				$pk->windowid = 0;
-				$player->dataPacket(clone $pk);
+				$player->sendPacket(clone $pk);
 			}else{
 				if(($id = $player->getWindowId($this)) === -1){
 					$this->close($player);
 					continue;
 				}
 				$pk->windowid = $id;
-				$player->dataPacket(clone $pk);
+				$player->sendPacket(clone $pk);
 			}
 		}
 	}

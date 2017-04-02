@@ -36,6 +36,10 @@ class DisconnectPacket extends DataPacket{
 		return true;
 	}
 
+	public function getAcceptableStatus() : int{
+		return NetworkSession::STATUS_ANY;
+	}
+
 	public function decode(){
 		$this->hideDisconnectionScreen = $this->getBool();
 		$this->message = $this->getString();

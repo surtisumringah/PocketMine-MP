@@ -19,29 +19,9 @@
  *
 */
 
-namespace pocketmine\inventory;
 
-use pocketmine\level\Position;
-use pocketmine\Player;
+namespace pocketmine\network;
 
-class AnvilInventory extends ContainerInventory{
-	public function __construct(Position $pos){
-		parent::__construct(new FakeBlockMenu($this, $pos), InventoryType::get(InventoryType::ANVIL));
-	}
+class PacketException extends NetworkException{
 
-	/**
-	 * @return FakeBlockMenu
-	 */
-	public function getHolder(){
-		return $this->holder;
-	}
-
-	public function onClose(Player $who, bool $isClientSide = false){
-		parent::onClose($who, $isClientSide);
-
-		for($i = 0; $i < 2; ++$i){
-			$this->getHolder()->getLevel()->dropItem($this->getHolder()->add(0.5, 0.5, 0.5), $this->getItem($i));
-			$this->clear($i);
-		}
-	}
 }

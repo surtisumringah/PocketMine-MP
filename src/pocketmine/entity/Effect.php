@@ -399,7 +399,7 @@ class Effect{
 				$pk->eventId = MobEffectPacket::EVENT_ADD;
 			}
 
-			$entity->dataPacket($pk);
+			$entity->sendPacket($pk);
 		}
 
 		switch($this->id){
@@ -469,7 +469,7 @@ class Effect{
 			$pk->eventId = MobEffectPacket::EVENT_REMOVE;
 			$pk->effectId = $this->getId();
 
-			$entity->dataPacket($pk);
+			$entity->sendPacket($pk);
 		}
 
 		switch($this->id){

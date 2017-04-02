@@ -24,6 +24,7 @@
  */
 namespace pocketmine\network;
 
+use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\Player;
 
@@ -35,23 +36,23 @@ interface SourceInterface{
 	/**
 	 * Sends a DataPacket to the interface, returns an unique identifier for the packet if $needACK is true
 	 *
-	 * @param Player     $player
+	 * @param Player     $session
 	 * @param DataPacket $packet
 	 * @param bool       $needACK
 	 * @param bool       $immediate
 	 *
 	 * @return int
 	 */
-	public function putPacket(Player $player, DataPacket $packet, $needACK = false, $immediate = true);
+	public function putPacket(NetworkSession $session, DataPacket $packet, $needACK = false, $immediate = true);
 
 	/**
 	 * Terminates the connection
 	 *
-	 * @param Player $player
+	 * @param Player $session
 	 * @param string $reason
 	 *
 	 */
-	public function close(Player $player, $reason = "unknown reason");
+	public function close(NetworkSession $session, $reason = "unknown reason");
 
 	/**
 	 * @param string $name

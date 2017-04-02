@@ -109,15 +109,36 @@ use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
 use pocketmine\network\mcpe\protocol\UpdateTradePacket;
 use pocketmine\network\mcpe\protocol\UseItemPacket;
 use pocketmine\Server;
+use pocketmine\utils\UUID;
 
 interface NetworkSession{
+
+	const STATUS_UNCONNECTED = 0b1;
+	//TODO: add more statuses
+
+	const STATUS_ANY = -1;
 
 	/**
 	 * @return Server
 	 */
 	public function getServer();
 
-	public function handleDataPacket(DataPacket $pk);
+	public function getAddress() : string;
+
+	public function getPort() : int;
+
+	public function getName();
+
+	/**
+	 * @return UUID|null
+	 */
+	public function getUniqueId();
+
+	public function receivePacket(DataPacket $packet);
+
+	public function sendPacket(DataPacket $packet, bool $immediate = false);
+
+	public function disconnect(string $message = "unknown", bool $notifyClient = true);
 
 	public function handleLogin(LoginPacket $packet) : bool;
 

@@ -19,29 +19,32 @@
  *
 */
 
-namespace pocketmine\inventory;
 
-use pocketmine\level\Position;
-use pocketmine\Player;
+namespace pocketmine\entity;
 
-class AnvilInventory extends ContainerInventory{
-	public function __construct(Position $pos){
-		parent::__construct(new FakeBlockMenu($this, $pos), InventoryType::get(InventoryType::ANVIL));
+/**
+ * Stores data about an entity's skin, usually a player's.
+ */
+class SkinData{
+
+	protected $skin;
+	protected $skinModel;
+
+	public function __construct(string $skinData, string $skinModel){
+		$this->skin = $skinData;
+		$this->skinModel = $skinModel;
 	}
 
-	/**
-	 * @return FakeBlockMenu
-	 */
-	public function getHolder(){
-		return $this->holder;
+	public function getData() : string{
+		return $this->skin;
 	}
 
-	public function onClose(Player $who, bool $isClientSide = false){
-		parent::onClose($who, $isClientSide);
+	public function getModel() : string{
+		return $this->skinModel;
+	}
 
-		for($i = 0; $i < 2; ++$i){
-			$this->getHolder()->getLevel()->dropItem($this->getHolder()->add(0.5, 0.5, 0.5), $this->getItem($i));
-			$this->clear($i);
-		}
+	public function isValid() : bool{
+		//TODO: add model validation
+		return strlen($this->skin) === 64 * 64 * 4 or strlen($this->skin) === 64 * 32 * 4;
 	}
 }

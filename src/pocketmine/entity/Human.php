@@ -252,6 +252,24 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		return $this->inventory;
 	}
 
+	/**
+	 * Returns whether this human is currently using their held item.
+	 * TODO: move this further up the hierarchy so it can be applied to other mobs like witches
+	 *
+	 * @return bool
+	 */
+	public function isUsingItem() : bool{
+		return $this->getDataFlag(self::DATA_FLAGS, self::DATA_FLAG_ACTION);
+	}
+
+	/**
+	 * Sets whether the human is currently using their held item.
+	 * @param bool $usingItem
+	 */
+	public function setUsingItem(bool $usingItem){
+		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_ACTION, $usingItem);
+	}
+
 	protected function initEntity(){
 
 		$this->setDataFlag(self::DATA_PLAYER_FLAGS, self::DATA_PLAYER_FLAG_SLEEP, false, self::DATA_TYPE_BYTE);
@@ -492,7 +510,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 			$pk->pitch = $this->pitch;
 			$pk->item = $this->getInventory()->getItemInHand();
 			$pk->metadata = $this->dataProperties;
-			$player->dataPacket($pk);
+			$player->sendPacket($pk);
 
 			$this->inventory->sendArmorContents($player);
 

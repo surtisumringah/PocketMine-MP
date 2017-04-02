@@ -47,7 +47,7 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 	private $rakLib;
 
 	/** @var Player[] */
-	private $players = [];
+	private $sessions = [];
 
 	/** @var string[] */
 	private $identifiers;
@@ -89,18 +89,18 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 	}
 
 	public function closeSession($identifier, $reason){
-		if(isset($this->players[$identifier])){
-			$player = $this->players[$identifier];
-			unset($this->identifiers[spl_object_hash($player)]);
-			unset($this->players[$identifier]);
+		if(isset($this->sessions[$identifier])){
+			$session = $this->sessions[$identifier];
+			unset($this->identifiers[spl_object_hash($session)]);
+			unset($this->sessions[$identifier]);
 			unset($this->identifiersACK[$identifier]);
-			$player->close($player->getLeaveMessage(), $reason);
+			$session->disconnect($reason);
 		}
 	}
 
-	public function close(Player $player, $reason = "unknown reason"){
-		if(isset($this->identifiers[$h = spl_object_hash($player)])){
-			unset($this->players[$this->identifiers[$h]]);
+	public function close(NetworkSession $session, $reason = "unknown reason"){
+		if(isset($this->identifiers[$h = spl_object_hash($session)])){
+			unset($this->sessions[$this->identifiers[$h]]);
 			unset($this->identifiersACK[$this->identifiers[$h]]);
 			$this->interface->closeSession($this->identifiers[$h], $reason);
 			unset($this->identifiers[$h]);
@@ -116,23 +116,24 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 	}
 
 	public function openSession($identifier, $address, $port, $clientID){
-		$ev = new PlayerCreationEvent($this, Player::class, Player::class, null, $address, $port);
+		/*$ev = new PlayerCreationEvent($this, Player::class, Player::class, null, $address, $port);
 		$this->server->getPluginManager()->callEvent($ev);
 		$class = $ev->getPlayerClass();
 
-		$player = new $class($this, $ev->getClientId(), $ev->getAddress(), $ev->getPort());
-		$this->players[$identifier] = $player;
+		/*$player = new $class($this, $ev->getClientId(), $ev->getAddress(), $ev->getPort());*/
+		$player = new ServerPlayerNetworkSession($this->server, $this, $address, $port);
+		$this->sessions[$identifier] = $player;
 		$this->identifiersACK[$identifier] = 0;
 		$this->identifiers[spl_object_hash($player)] = $identifier;
-		$this->server->addPlayer($identifier, $player);
+		$this->server->getLogger()->debug("New connection from $address:$port identifier $identifier");
 	}
 
 	public function handleEncapsulated($identifier, EncapsulatedPacket $packet, $flags){
-		if(isset($this->players[$identifier])){
+		if(isset($this->sessions[$identifier])){
 			try{
 				if($packet->buffer !== ""){
 					$pk = $this->getPacket($packet->buffer);
-					$this->players[$identifier]->handleDataPacket($pk);
+					$this->sessions[$identifier]->receivePacket($pk);
 				}
 			}catch(\Throwable $e){
 				if(\pocketmine\DEBUG > 1 and isset($pk)){
@@ -141,8 +142,8 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 					$logger->logException($e);
 				}
 
-				if(isset($this->players[$identifier])){
-					$this->interface->blockAddress($this->players[$identifier]->getAddress(), 5);
+				if(isset($this->sessions[$identifier])){
+					$this->interface->blockAddress($this->sessions[$identifier]->getAddress(), 5);
 				}
 			}
 		}
@@ -187,8 +188,8 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 		}
 	}
 
-	public function putPacket(Player $player, DataPacket $packet, $needACK = false, $immediate = false){
-		if(isset($this->identifiers[$h = spl_object_hash($player)])){
+	public function putPacket(NetworkSession $session, DataPacket $packet, $needACK = false, $immediate = false){
+		if(isset($this->identifiers[$h = spl_object_hash($session)])){
 			$identifier = $this->identifiers[$h];
 			$pk = null;
 			if(!$packet->isEncoded){
@@ -208,7 +209,7 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 			if(!$immediate and !$needACK and $packet->canBeBatched()
 				and Network::$BATCH_THRESHOLD >= 0
 				and strlen($packet->buffer) >= Network::$BATCH_THRESHOLD){
-				$this->server->batchPackets([$player], [$packet], true);
+				$this->server->batchPackets([$session], [$packet], true);
 				return null;
 			}
 

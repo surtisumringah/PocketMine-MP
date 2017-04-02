@@ -34,9 +34,11 @@ use pocketmine\command\SimpleCommandMap;
 use pocketmine\entity\Attribute;
 use pocketmine\entity\Effect;
 use pocketmine\entity\Entity;
+use pocketmine\entity\SkinData;
 use pocketmine\event\HandlerList;
 use pocketmine\event\level\LevelInitEvent;
 use pocketmine\event\level\LevelLoadEvent;
+use pocketmine\event\player\PlayerPreLoginEvent;
 use pocketmine\event\server\QueryRegenerateEvent;
 use pocketmine\event\server\ServerCommandEvent;
 use pocketmine\event\Timings;
@@ -1755,7 +1757,7 @@ class Server{
 		}
 
 		foreach($players as $player){
-			$player->dataPacket($packet);
+			$player->sendPacket($packet);
 		}
 		if(isset($packet->__encapsulatedPacket)){
 			unset($packet->__encapsulatedPacket);
@@ -1809,7 +1811,7 @@ class Server{
 
 		foreach($identifiers as $i){
 			if(isset($this->players[$i])){
-				$this->players[$i]->dataPacket($pk);
+				$this->players[$i]->sendPacket($pk);
 			}
 		}
 	}
@@ -2147,13 +2149,49 @@ class Server{
 		}
 	}
 
+	/**
+	 * Called by network sessions when a player attempts to login.
+	 *
+	 * @param string $username
+	 * @param string $ip
+	 * @param int $port
+	 * @param string $uuid
+	 * @param SkinData $skin
+	 *
+	 * @return PlayerPreLoginEvent
+	 */
+	public function onPlayerPreLogin(string $username, string $ip, int $port, string $uuid, SkinData $skin){
+		$ev = new PlayerPreLoginEvent($username, $ip, $port, $uuid, $skin);
+
+		//Set these first so plugins can override them
+		if(!$this->isWhitelisted($ev->getUsername())){
+			$ev->setCancelledWithReason("Server is white-listed");
+		}elseif($this->getNameBans()->isBanned($ev->getUsername()) or $this->getIPBans()->isBanned($ip)){
+			$ev->setCancelledWithReason("You are banned");
+		}
+
+		$this->pluginManager->callEvent($ev);
+
+		if(!$ev->isCancelled()){
+			//If a plugin hasn't fixed this already, get rid of the player.
+			if(!Player::isValidUserName($ev->getUsername())){
+				$ev->setCancelledWithReason("disconnectionScreen.invalidName");
+			}elseif(!$ev->getSkin()->isValid()){
+				$ev->setCancelledWithReason("disconnectionScreen.invalidSkin");
+			}
+		}
+
+		//Return the event so the caller can decide what to do with itself.
+		return $ev;
+	}
+
 	public function onPlayerLogin(Player $player){
 		if($this->sendUsageTicker > 0){
 			$this->uniquePlayers[$player->getRawUniqueId()] = $player->getRawUniqueId();
 		}
 
 		$this->sendFullPlayerListData($player);
-		$player->dataPacket($this->craftingManager->getCraftingDataPacket());
+		$player->sendPacket($this->craftingManager->getCraftingDataPacket());
 	}
 
 	public function addPlayer($identifier, Player $player){
@@ -2202,7 +2240,7 @@ class Server{
 			$pk->entries[] = [$player->getUniqueId(), $player->getId(), $player->getDisplayName(), $player->getSkinId(), $player->getSkinData()];
 		}
 
-		$p->dataPacket($pk);
+		$p->sendPacket($pk);
 	}
 
 	private function checkTickUpdates($currentTick, $tickTime){

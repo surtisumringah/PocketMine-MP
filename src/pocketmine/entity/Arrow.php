@@ -85,7 +85,7 @@ class Arrow extends Projectile{
 		$pk->speedY = $this->motionY;
 		$pk->speedZ = $this->motionZ;
 		$pk->metadata = $this->dataProperties;
-		$player->dataPacket($pk);
+		$player->sendPacket($pk);
 
 		parent::spawnTo($player);
 	}

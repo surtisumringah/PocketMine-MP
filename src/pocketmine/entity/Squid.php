@@ -159,7 +159,7 @@ class Squid extends WaterAnimal implements Ageable{
 		$pk->yaw = $this->yaw;
 		$pk->pitch = $this->pitch;
 		$pk->metadata = $this->dataProperties;
-		$player->dataPacket($pk);
+		$player->sendPacket($pk);
 
 		parent::spawnTo($player);
 	}

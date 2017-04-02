@@ -109,7 +109,7 @@ class DoubleChestInventory extends ChestInventory implements InventoryHolder{
 		}
 	}
 
-	public function onClose(Player $who){
+	public function onClose(Player $who, bool $isClientSide = false){
 		if(count($this->getViewers()) === 1){
 			$pk = new BlockEventPacket();
 			$pk->x = $this->right->getHolder()->getX();
@@ -121,7 +121,7 @@ class DoubleChestInventory extends ChestInventory implements InventoryHolder{
 				$level->addChunkPacket($this->right->getHolder()->getX() >> 4, $this->right->getHolder()->getZ() >> 4, $pk);
 			}
 		}
-		parent::onClose($who);
+		parent::onClose($who, $isClientSide);
 	}
 
 	/**

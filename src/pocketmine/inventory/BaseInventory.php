@@ -397,15 +397,15 @@ abstract class BaseInventory implements Inventory{
 		return true;
 	}
 
-	public function close(Player $who){
-		$this->onClose($who);
+	public function close(Player $who, bool $isClientSide = false){
+		$this->onClose($who, $isClientSide);
 	}
 
 	public function onOpen(Player $who){
 		$this->viewers[spl_object_hash($who)] = $who;
 	}
 
-	public function onClose(Player $who){
+	public function onClose(Player $who, bool $isClientSide = false){
 		unset($this->viewers[spl_object_hash($who)]);
 	}
 
@@ -434,7 +434,7 @@ abstract class BaseInventory implements Inventory{
 				continue;
 			}
 			$pk->windowid = $id;
-			$player->dataPacket($pk);
+			$player->sendPacket($pk);
 		}
 	}
 
@@ -457,7 +457,7 @@ abstract class BaseInventory implements Inventory{
 				continue;
 			}
 			$pk->windowid = $id;
-			$player->dataPacket($pk);
+			$player->sendPacket($pk);
 		}
 	}
 

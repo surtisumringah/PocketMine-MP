@@ -36,8 +36,8 @@ class EnchantInventory extends ContainerInventory{
 		return $this->holder;
 	}
 
-	public function onClose(Player $who){
-		parent::onClose($who);
+	public function onClose(Player $who, bool $isClientSide = false){
+		parent::onClose($who, $isClientSide);
 
 		for($i = 0; $i < 2; ++$i){
 			$this->getHolder()->getLevel()->dropItem($this->getHolder()->add(0.5, 0.5, 0.5), $this->getItem($i));

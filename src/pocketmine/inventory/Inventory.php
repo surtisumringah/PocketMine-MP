@@ -204,12 +204,12 @@ interface Inventory{
 	 */
 	public function open(Player $who);
 
-	public function close(Player $who);
+	public function close(Player $who, bool $isClientSide = false);
 
 	/**
 	 * @param Player $who
 	 */
-	public function onClose(Player $who);
+	public function onClose(Player $who, bool $isClientSide = false);
 
 	/**
 	 * @param int  $index

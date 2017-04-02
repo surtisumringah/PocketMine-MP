@@ -48,6 +48,14 @@ abstract class DataPacket extends BinaryStream{
 		return false;
 	}
 
+	public function getAcceptableStatus() : int{
+		return NetworkSession::STATUS_ANY;
+	}
+
+	public function getName() : string{
+		return (new \ReflectionClass($this))->getShortName();
+	}
+
 	abstract public function encode();
 
 	abstract public function decode();

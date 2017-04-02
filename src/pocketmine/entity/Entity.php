@@ -689,7 +689,7 @@ abstract class Entity extends Location implements Metadatable{
 			$pk->duration = $effect->getDuration();
 			$pk->eventId = MobEffectPacket::EVENT_ADD;
 
-			$player->dataPacket($pk);
+			$player->sendPacket($pk);
 		}
 	}
 
@@ -710,11 +710,11 @@ abstract class Entity extends Location implements Metadatable{
 			if($p === $this){
 				continue;
 			}
-			$p->dataPacket(clone $pk);
+			$p->sendPacket(clone $pk);
 		}
 
 		if($this instanceof Player){
-			$this->dataPacket($pk);
+			$this->sendPacket($pk);
 		}
 	}
 
@@ -727,7 +727,7 @@ abstract class Entity extends Location implements Metadatable{
 			if($send){
 				$pk = new RemoveEntityPacket();
 				$pk->eid = $this->id;
-				$player->dataPacket($pk);
+				$player->sendPacket($pk);
 			}
 			unset($this->hasSpawned[$player->getLoaderId()]);
 		}

@@ -41,7 +41,7 @@ abstract class Spawnable extends Tile{
 		$pk->y = $this->y;
 		$pk->z = $this->z;
 		$pk->namedtag = $nbt->write(true);
-		$player->dataPacket($pk);
+		$player->sendPacket($pk);
 
 		return true;
 	}

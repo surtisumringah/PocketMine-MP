@@ -54,7 +54,7 @@ class ChestInventory extends ContainerInventory{
 		}
 	}
 
-	public function onClose(Player $who){
+	public function onClose(Player $who, bool $isClientSide = false){
 		if(count($this->getViewers()) === 1){
 			$pk = new BlockEventPacket();
 			$pk->x = $this->getHolder()->getX();
@@ -66,6 +66,6 @@ class ChestInventory extends ContainerInventory{
 				$level->addChunkPacket($this->getHolder()->getX() >> 4, $this->getHolder()->getZ() >> 4, $pk);
 			}
 		}
-		parent::onClose($who);
+		parent::onClose($who, $isClientSide);
 	}
 }

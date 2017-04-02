@@ -224,8 +224,8 @@ class Network{
 	}
 
 	/**
-	 * @param int        $id 0-255
-	 * @param DataPacket $class
+	 * @param int    $id 0-255
+	 * @param string $class
 	 */
 	public function registerPacket($id, $class){
 		$this->packetPool[$id] = new $class;

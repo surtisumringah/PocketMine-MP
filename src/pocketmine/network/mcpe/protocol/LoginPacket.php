@@ -52,6 +52,10 @@ class LoginPacket extends DataPacket{
 		return true;
 	}
 
+	public function getAcceptableStatus() : int{
+		return NetworkSession::STATUS_UNCONNECTED;
+	}
+
 	public function decode(){
 		$this->protocol = $this->getInt();
 

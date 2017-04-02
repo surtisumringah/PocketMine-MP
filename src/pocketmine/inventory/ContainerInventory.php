@@ -42,15 +42,17 @@ abstract class ContainerInventory extends BaseInventory{
 			$pk->x = $pk->y = $pk->z = 0;
 		}
 
-		$who->dataPacket($pk);
+		$who->sendPacket($pk);
 
 		$this->sendContents($who);
 	}
 
-	public function onClose(Player $who){
-		$pk = new ContainerClosePacket();
-		$pk->windowid = $who->getWindowId($this);
-		$who->dataPacket($pk);
-		parent::onClose($who);
+	public function onClose(Player $who, bool $isClientSide = false){
+		if(!$isClientSide){
+			$pk = new ContainerClosePacket();
+			$pk->windowid = $who->getWindowId($this);
+			$who->sendPacket($pk);
+		}
+		parent::onClose($who, $isClientSide);
 	}
 }

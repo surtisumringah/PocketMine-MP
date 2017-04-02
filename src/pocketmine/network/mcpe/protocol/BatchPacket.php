@@ -71,7 +71,7 @@ class BatchPacket extends DataPacket{
 			}
 
 			$pk->setBuffer($buf, 1);
-			$session->handleDataPacket($pk);
+			$session->receivePacket($pk);
 		}
 
 		return true;

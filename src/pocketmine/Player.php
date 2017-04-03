@@ -214,6 +214,9 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 	const SPECTATOR = 3;
 	const VIEW = Player::SPECTATOR;
 
+	const REACH_DISTANCE_SURVIVAL = 6;
+	const REACH_DISTANCE_CREATIVE = 13;
+
 	/**
 	 * Checks a supplied username and checks it is valid.
 	 * @param string $name
@@ -318,6 +321,8 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 
 	protected $allowMovementCheats = false;
 	protected $allowInstaBreak = false;
+
+	protected $reachDistance = Player::REACH_DISTANCE_SURVIVAL;
 
 	private $needACK = [];
 
@@ -430,6 +435,40 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 
 	public function setAllowInstaBreak(bool $value = false){
 		$this->allowInstaBreak = $value;
+	}
+
+	/**
+	 * Returns the player's current reach distance in number of blocks.
+	 * @return int
+	 */
+	public function getReachDistance() : int{
+		return $this->reachDistance;
+	}
+
+	/**
+	 * Sets the player's allowed reach distance.
+	 * NOTE: Due to client-sided limitations, values larger than the default for that gamemode may have no effect unless the player is using a modified client.
+	 *
+	 * @param int $distance
+	 */
+	public function setReachDistance(int $distance){
+		if($distance < 0){
+			throw new \InvalidArgumentException("Reach distance cannot be less than zero");
+		}
+		$this->reachDistance = $distance;
+	}
+
+	/**
+	 * Resets the player's reach distance to the default for their current gamemode.
+	 */
+	public function resetDefaultReachDistance(){
+		if($this->isSurvival()){ //Survival or adventure
+			$this->setReachDistance(Player::REACH_DISTANCE_SURVIVAL);
+		}elseif($this->isCreative(true)){ //Creative only
+			$this->setReachDistance(Player::REACH_DISTANCE_CREATIVE);
+		}elseif($this->isSpectator()){ //Spectator
+			$this->setReachDistance(0);
+		}
 	}
 
 	/**
@@ -1251,6 +1290,8 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		$this->gamemode = $gm;
 
 		$this->allowFlight = $this->isCreative();
+		$this->resetDefaultReachDistance();
+
 		if($this->isSpectator()){
 			$this->flying = true;
 			$this->despawnFromAll();
@@ -1788,6 +1829,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		}
 
 		$this->allowFlight = (bool) ($this->gamemode & 0x01);
+		$this->resetDefaultReachDistance();
 
 		if(($level = $this->server->getLevelByName($nbt["Level"])) === null){
 			if($this->server->getDefaultLevel() === null){
@@ -2102,7 +2144,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		$item = $this->inventory->getItemInHand();
 		$oldItem = clone $item;
 
-		if($this->canInteract($vector->add(0.5, 0.5, 0.5), $this->isCreative() ? 13 : 6) and $this->level->useBreakOn($vector, $item, $this, true)){
+		if($this->canInteract($vector->add(0.5, 0.5, 0.5), $this->getReachDistance()) and $this->level->useBreakOn($vector, $item, $this, true)){
 			if($this->isSurvival()){
 				if(!$item->equals($oldItem) or $item->getCount() !== $oldItem->getCount()){
 					$this->inventory->setItemInHand($item);
@@ -2386,7 +2428,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		if($packet->face >= 0 and $packet->face <= 5){ //Use Block, place
 			$this->setUsingItem(false);
 
-			if(!$this->canInteract($blockVector->add(0.5, 0.5, 0.5), 13) or $this->isSpectator()){
+			if(!$this->canInteract($blockVector->add(0.5, 0.5, 0.5), $this->getReachDistance()) or $this->isSpectator()){
 			}elseif($this->isCreative()){
 				$item = $this->inventory->getItemInHand();
 				if($this->level->useItemOn($blockVector, $item, $packet->face, $packet->fx, $packet->fy, $packet->fz, $this) === true){

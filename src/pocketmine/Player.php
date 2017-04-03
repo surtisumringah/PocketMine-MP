@@ -2435,7 +2435,6 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 					return true;
 				}
 			}elseif(!$this->inventory->getItemInHand()->equals($packet->item)){
-				$this->inventory->sendHeldItem($this);
 			}else{
 				$item = $this->inventory->getItemInHand();
 				$oldItem = clone $item;

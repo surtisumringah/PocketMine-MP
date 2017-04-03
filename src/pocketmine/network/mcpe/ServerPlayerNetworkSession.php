@@ -206,10 +206,8 @@ class ServerPlayerNetworkSession implements NetworkSession{
 		$immediate = true; //TODO: remove this and implement batch (and not the mess we have currently)
 
 		if($immediate or !$pk->canBeBatched()){
-			var_dump($pk->getName());
 			$this->interface->putPacket($this, $pk, false, $immediate);
 		}else{
-			echo "wat\n";
 			//TODO: batch stuff
 		}
 

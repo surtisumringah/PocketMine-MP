@@ -59,7 +59,6 @@ use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerKickEvent;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\player\PlayerMoveEvent;
-use pocketmine\event\player\PlayerPreLoginEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerRespawnEvent;
 use pocketmine\event\player\PlayerToggleFlightEvent;
@@ -154,7 +153,6 @@ use pocketmine\network\mcpe\protocol\PlayerInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlaySoundPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RemoveBlockPacket;
 use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
 use pocketmine\network\mcpe\protocol\ReplaceItemInSlotPacket;
@@ -194,13 +192,11 @@ use pocketmine\network\SourceInterface;
 use pocketmine\permission\PermissibleBase;
 use pocketmine\permission\PermissionAttachment;
 use pocketmine\plugin\Plugin;
-use pocketmine\resourcepacks\ResourcePack;
 use pocketmine\tile\ItemFrame;
 use pocketmine\tile\Spawnable;
 use pocketmine\tile\Tile;
 use pocketmine\utils\ServerException;
 use pocketmine\utils\TextFormat;
-use pocketmine\utils\UUID;
 
 
 /**
@@ -1076,7 +1072,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 	}
 
 	public function disconnect(string $message = "unknown", bool $notifyClient = true){
-		$this->close("", $message, $notify);
+		$this->close("", $message, $notifyClient);
 	}
 
 	/**
@@ -2203,10 +2199,9 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		}
 		$this->craftingType = 0;
 
-		$this->setUsingItem(false); //TODO: check if this should be true
-
 		switch($packet->event){
 			case EntityEventPacket::USE_ITEM: //Eating
+				$this->setUsingItem(false);
 				$slot = $this->inventory->getItemInHand();
 
 				if($slot->canBeConsumed()){
@@ -2243,7 +2238,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		}
 
 		if($packet->inventorySlot === 255){
-			$packet->inventorySlot = -1; //Cleared slot
+			$packet->inventorySlot = -1;
 		}else{
 			$packet->inventorySlot -= 9; //Get real inventory slot
 			$item = $this->inventory->getItem($packet->inventorySlot);
@@ -2266,138 +2261,123 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		return false;
 	}
 
-	public function handleInteract(InteractPacket $packet) : bool{
-		if($this->spawned === false or !$this->isAlive()){
-			return true;
-		}
-
+	/**
+	 * Called when a Player attempts to attack an entity.
+	 *
+	 * TODO: move this into Entity classes to allow other entities to attack each other
+	 *
+	 * @param Entity $target
+	 *
+	 * @return bool
+	 */
+	public function attackEntity(Entity $target){
 		$this->craftingType = 0;
 
-		$target = $this->level->getEntity($packet->target);
+		if(!$this->isSpectator() and $this->isAlive() and $target->isAlive()){
+			$cancelled = false;
+			$item = $this->inventory->getItemInHand();
+			$damageTable = [
+				Item::WOODEN_SWORD => 4,
+				Item::GOLD_SWORD => 4,
+				Item::STONE_SWORD => 5,
+				Item::IRON_SWORD => 6,
+				Item::DIAMOND_SWORD => 7,
 
-		$cancelled = false;
-		switch($packet->action){
-			case InteractPacket::ACTION_LEFT_CLICK: //Attack
-				if($target instanceof Player and $this->server->getConfigBoolean("pvp", true) === false){
+				Item::WOODEN_AXE => 3,
+				Item::GOLD_AXE => 3,
+				Item::STONE_AXE => 3,
+				Item::IRON_AXE => 5,
+				Item::DIAMOND_AXE => 6,
+
+				Item::WOODEN_PICKAXE => 2,
+				Item::GOLD_PICKAXE => 2,
+				Item::STONE_PICKAXE => 3,
+				Item::IRON_PICKAXE => 4,
+				Item::DIAMOND_PICKAXE => 5,
+
+				Item::WOODEN_SHOVEL => 1,
+				Item::GOLD_SHOVEL => 1,
+				Item::STONE_SHOVEL => 2,
+				Item::IRON_SHOVEL => 3,
+				Item::DIAMOND_SHOVEL => 4,
+			];
+
+			$damage = [
+				EntityDamageEvent::MODIFIER_BASE => $damageTable[$item->getId()] ?? 1,
+			];
+
+			if(!$this->canInteract($target, 8)){
+				$cancelled = true;
+			}elseif($target instanceof Player){
+				if($target->isCreative(false)){
+					return true;
+				}elseif($this->server->getConfigBoolean("pvp") === false){
 					$cancelled = true;
 				}
 
-				if($target instanceof Entity and $this->getGamemode() !== Player::VIEW and $this->isAlive() and $target->isAlive()){
-					if($target instanceof DroppedItem or $target instanceof Arrow){
-						$this->kick("Attempting to attack an invalid entity");
-						$this->server->getLogger()->warning($this->getServer()->getLanguage()->translateString("pocketmine.player.invalidEntity", [$this->getName()]));
-						break;
-					}
-
-					$item = $this->inventory->getItemInHand();
-					$damageTable = [
-						Item::WOODEN_SWORD => 4,
-						Item::GOLD_SWORD => 4,
-						Item::STONE_SWORD => 5,
-						Item::IRON_SWORD => 6,
-						Item::DIAMOND_SWORD => 7,
-
-						Item::WOODEN_AXE => 3,
-						Item::GOLD_AXE => 3,
-						Item::STONE_AXE => 3,
-						Item::IRON_AXE => 5,
-						Item::DIAMOND_AXE => 6,
-
-						Item::WOODEN_PICKAXE => 2,
-						Item::GOLD_PICKAXE => 2,
-						Item::STONE_PICKAXE => 3,
-						Item::IRON_PICKAXE => 4,
-						Item::DIAMOND_PICKAXE => 5,
-
-						Item::WOODEN_SHOVEL => 1,
-						Item::GOLD_SHOVEL => 1,
-						Item::STONE_SHOVEL => 2,
-						Item::IRON_SHOVEL => 3,
-						Item::DIAMOND_SHOVEL => 4,
-					];
-
-					$damage = [
-						EntityDamageEvent::MODIFIER_BASE => $damageTable[$item->getId()] ?? 1,
-					];
-
-					if(!$this->canInteract($target, 8)){
-						$cancelled = true;
-					}elseif($target instanceof Player){
-						if(($target->getGamemode() & 0x01) > 0){
-							break;
-						}elseif($this->server->getConfigBoolean("pvp") !== true or $this->server->getDifficulty() === 0){
-							$cancelled = true;
-						}
-
-						$armorValues = [
-							Item::LEATHER_CAP => 1,
-							Item::LEATHER_TUNIC => 3,
-							Item::LEATHER_PANTS => 2,
-							Item::LEATHER_BOOTS => 1,
-							Item::CHAIN_HELMET => 1,
-							Item::CHAIN_CHESTPLATE => 5,
-							Item::CHAIN_LEGGINGS => 4,
-							Item::CHAIN_BOOTS => 1,
-							Item::GOLD_HELMET => 1,
-							Item::GOLD_CHESTPLATE => 5,
-							Item::GOLD_LEGGINGS => 3,
-							Item::GOLD_BOOTS => 1,
-							Item::IRON_HELMET => 2,
-							Item::IRON_CHESTPLATE => 6,
-							Item::IRON_LEGGINGS => 5,
-							Item::IRON_BOOTS => 2,
-							Item::DIAMOND_HELMET => 3,
-							Item::DIAMOND_CHESTPLATE => 8,
-							Item::DIAMOND_LEGGINGS => 6,
-							Item::DIAMOND_BOOTS => 3,
-						];
-						$points = 0;
-						foreach($target->getInventory()->getArmorContents() as $index => $i){
-							if(isset($armorValues[$i->getId()])){
-								$points += $armorValues[$i->getId()];
-							}
-						}
-
-						$damage[EntityDamageEvent::MODIFIER_ARMOR] = -floor($damage[EntityDamageEvent::MODIFIER_BASE] * $points * 0.04);
-					}
-
-					$ev = new EntityDamageByEntityEvent($this, $target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $damage);
-					if($cancelled){
-						$ev->setCancelled();
-					}
-
-					$target->attack($ev->getFinalDamage(), $ev);
-
-					if($ev->isCancelled()){
-						if($item->isTool() and $this->isSurvival()){
-							$this->inventory->sendContents($this);
-						}
-						break;
-					}
-
-					if($this->isSurvival()){
-						if($item->isTool()){
-							if($item->useOn($target) and $item->getDamage() >= $item->getMaxDurability()){
-								$this->inventory->setItemInHand(Item::get(Item::AIR, 0, 1));
-							}else{
-								$this->inventory->setItemInHand($item);
-							}
-						}
-
-						$this->exhaust(0.3, PlayerExhaustEvent::CAUSE_ATTACK);
+				$armorValues = [
+					Item::LEATHER_CAP => 1,
+					Item::LEATHER_TUNIC => 3,
+					Item::LEATHER_PANTS => 2,
+					Item::LEATHER_BOOTS => 1,
+					Item::CHAIN_HELMET => 1,
+					Item::CHAIN_CHESTPLATE => 5,
+					Item::CHAIN_LEGGINGS => 4,
+					Item::CHAIN_BOOTS => 1,
+					Item::GOLD_HELMET => 1,
+					Item::GOLD_CHESTPLATE => 5,
+					Item::GOLD_LEGGINGS => 3,
+					Item::GOLD_BOOTS => 1,
+					Item::IRON_HELMET => 2,
+					Item::IRON_CHESTPLATE => 6,
+					Item::IRON_LEGGINGS => 5,
+					Item::IRON_BOOTS => 2,
+					Item::DIAMOND_HELMET => 3,
+					Item::DIAMOND_CHESTPLATE => 8,
+					Item::DIAMOND_LEGGINGS => 6,
+					Item::DIAMOND_BOOTS => 3,
+				];
+				$points = 0;
+				foreach($target->getInventory()->getArmorContents() as $index => $i){
+					if(isset($armorValues[$i->getId()])){
+						$points += $armorValues[$i->getId()];
 					}
 				}
-				break;
-			case InteractPacket::ACTION_RIGHT_CLICK:
-			case InteractPacket::ACTION_LEAVE_VEHICLE:
-			case InteractPacket::ACTION_MOUSEOVER:
-				break; //TODO: handle these
-			default:
-				$this->server->getLogger()->debug("Unhandled/unknown interaction type " . $packet->action . "received from ". $this->getName());
-				break;
+
+				$damage[EntityDamageEvent::MODIFIER_ARMOR] = -floor($damage[EntityDamageEvent::MODIFIER_BASE] * $points * 0.04);
+			}
+
+			$ev = new EntityDamageByEntityEvent($this, $target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $damage);
+			$ev->setCancelled($cancelled);
+
+			$target->attack($ev->getFinalDamage(), $ev);
+
+			if($ev->isCancelled()){
+				if($item->isTool() and $this->isSurvival()){
+					$this->inventory->sendHeldItem($this);
+				}
+			}else{
+				if($this->isSurvival()){
+					if($item->isTool()){
+						if($item->useOn($target) and $item->getDamage() >= $item->getMaxDurability()){
+							$this->inventory->setItemInHand(Item::get(Item::AIR, 0, 1));
+						}else{
+							$this->inventory->setItemInHand($item);
+						}
+					}
+
+					$this->exhaust(0.3, PlayerExhaustEvent::CAUSE_ATTACK);
+				}
+			}
+
+			return true;
 		}
 
-		return true;
+		return false;
+	}
+
+	public function handleInteract(InteractPacket $packet) : bool{
+		return false;
 	}
 
 	public function handleBlockPickRequest(BlockPickRequestPacket $packet) : bool{
@@ -2416,74 +2396,72 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 		return false;
 	}
 
-	public function handleUseItem(UseItemPacket $packet) : bool{
-		if($this->spawned === false or !$this->isAlive()){
-			return true;
-		}
-
-		$blockVector = new Vector3($packet->x, $packet->y, $packet->z);
-
-		$this->craftingType = 0;
-
-		if($packet->face >= 0 and $packet->face <= 5){ //Use Block, place
+	public function rightClickBlock(Item $usedItem, int $hotbarSlot, Vector3 $blockVector, int $blockFace, Vector3 $facePosition){
+		if($blockFace >= 0 and $blockFace <= 5){
 			$this->setUsingItem(false);
 
-			if(!$this->canInteract($blockVector->add(0.5, 0.5, 0.5), $this->getReachDistance()) or $this->isSpectator()){
-			}elseif($this->isCreative()){
-				$item = $this->inventory->getItemInHand();
-				if($this->level->useItemOn($blockVector, $item, $packet->face, $packet->fx, $packet->fy, $packet->fz, $this) === true){
-					return true;
-				}
-			}elseif(!$this->inventory->getItemInHand()->equals($packet->item)){
-			}else{
-				$item = $this->inventory->getItemInHand();
-				$oldItem = clone $item;
-				//TODO: Implement adventure mode checks
-				if($this->level->useItemOn($blockVector, $item, $packet->face, $packet->fx, $packet->fy, $packet->fz, $this)){
-					if(!$item->equals($oldItem) or $item->getCount() !== $oldItem->getCount()){
-						$this->inventory->setItemInHand($item);
-						$this->inventory->sendHeldItem($this->hasSpawned);
+			$serverHeldItem = $this->inventory->getItemInHand();
+			if(
+				$this->inventory->getHeldItemIndex() === $hotbarSlot and
+				$serverHeldItem->equals($usedItem) and
+				$serverHeldItem->getCount() === $usedItem->getCount() and
+				$this->canInteract($blockVector->add(0.5, 0.5, 0.5), $this->getReachDistance())
+			){
+				$oldHeldItem = clone $serverHeldItem;
+				if($this->getLevel()->useItemOn($blockVector, $serverHeldItem, $blockFace, $facePosition->x, $facePosition->y, $facePosition->z, $this)){
+					if($this->isSurvival() and (!$serverHeldItem->equals($oldHeldItem) or $serverHeldItem->getCount() !== $oldHeldItem->getCount())){
+						//Item changed (broken tool, count change or meta change)
+						$this->inventory->setItemInHand($serverHeldItem);
 					}
+
+					$this->inventory->equipItem($hotbarSlot);
+
 					return true;
 				}
 			}
 
+			//This will only be reached if something strange happened or if the event was cancelled.
 			$this->inventory->sendHeldItem($this);
 
 			if($blockVector->distanceSquared($this) > 10000){
-				return true;
+				return false;
 			}
 			$target = $this->level->getBlock($blockVector);
-			$block = $target->getSide($packet->face);
+			$block = $target->getSide($blockFace);
 
 			$this->level->sendBlocks([$this], [$target, $block], UpdateBlockPacket::FLAG_ALL_PRIORITY);
+
 			return true;
-		}elseif($packet->face === -1){
-			$aimPos = new Vector3(
-				-sin($this->yaw / 180 * M_PI) * cos($this->pitch / 180 * M_PI),
-				-sin($this->pitch / 180 * M_PI),
-				cos($this->yaw / 180 * M_PI) * cos($this->pitch / 180 * M_PI)
-			);
+		}
 
-			if($this->isCreative()){
-				$item = $this->inventory->getItemInHand();
-			}elseif(!$this->inventory->getItemInHand()->equals($packet->item)){
-				$this->inventory->sendHeldItem($this);
-				return true;
-			}else{
-				$item = $this->inventory->getItemInHand();
-			}
+		return false;
+	}
 
-			$ev = new PlayerInteractEvent($this, $item, $aimPos, $packet->face, PlayerInteractEvent::RIGHT_CLICK_AIR);
+	public function rightClickAir(Item $usedItem, int $hotbarSlot){
+		$serverHeldItem = $this->inventory->getItemInHand();
+		if(
+			$this->inventory->getHeldItemIndex() !== $hotbarSlot or
+			!$serverHeldItem->equals($usedItem) or
+			$serverHeldItem->getCount() !== $usedItem->getCount()
+		){
+			//Bad item
+			$this->inventory->sendHeldItem($this);
+			return false;
+		}
 
-			$this->server->getPluginManager()->callEvent($ev);
+		$aimPos = new Vector3(
+			-sin($this->yaw / 180 * M_PI) * cos($this->pitch / 180 * M_PI),
+			-sin($this->pitch / 180 * M_PI),
+			cos($this->yaw / 180 * M_PI) * cos($this->pitch / 180 * M_PI)
+		);
 
-			if($ev->isCancelled()){
-				$this->inventory->sendHeldItem($this);
-				return true;
-			}
+		$ev = new PlayerInteractEvent($this, $serverHeldItem, $aimPos, -1, PlayerInteractEvent::RIGHT_CLICK_AIR);
 
-			if($item->getId() === Item::SNOWBALL){
+		$this->server->getPluginManager()->callEvent($ev);
+
+		if(!$ev->isCancelled()){
+			//TODO: move this mess into per-item code
+			if($serverHeldItem->getId() === Item::SNOWBALL){
 				$nbt = new CompoundTag("", [
 					"Pos" => new ListTag("Pos", [
 						new DoubleTag("", $this->x),
@@ -2505,13 +2483,13 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 				$snowball = Entity::createEntity("Snowball", $this->getLevel(), $nbt, $this);
 				$snowball->setMotion($snowball->getMotion()->multiply($f));
 				if($this->isSurvival()){
-					$item->setCount($item->getCount() - 1);
-					$this->inventory->setItemInHand($item->getCount() > 0 ? $item : Item::get(Item::AIR));
+					$serverHeldItem->setCount($serverHeldItem->getCount() - 1);
+					$this->inventory->setItemInHand($serverHeldItem->getCount() > 0 ? $serverHeldItem : Item::get(Item::AIR));
 				}
 				if($snowball instanceof Projectile){
 					$this->server->getPluginManager()->callEvent($projectileEv = new ProjectileLaunchEvent($snowball));
 					if($projectileEv->isCancelled()){
-						$snowball->kill();
+						$snowball->close();
 					}else{
 						$snowball->spawnToAll();
 						$this->level->addSound(new LaunchSound($this), $this->getViewers());
@@ -2523,9 +2501,15 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 
 			$this->setUsingItem(true);
 			$this->startAction = $this->server->getTick();
+		}else{
+			$this->inventory->sendHeldItem($this);
 		}
 
 		return true;
+	}
+
+	public function handleUseItem(UseItemPacket $packet) : bool{
+		return false;
 	}
 
 	public function handlePlayerAction(PlayerActionPacket $packet) : bool{

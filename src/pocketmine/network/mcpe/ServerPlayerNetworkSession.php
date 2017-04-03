@@ -27,6 +27,7 @@ use pocketmine\entity\SkinData;
 use pocketmine\event\player\PlayerPreLoginEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\Timings;
+use pocketmine\math\Vector3;
 use pocketmine\network\AdvancedSourceInterface;
 use pocketmine\network\LoginFailedException;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
@@ -121,7 +122,6 @@ use pocketmine\Player;
 use pocketmine\resourcepacks\ResourcePack;
 use pocketmine\Server;
 use pocketmine\utils\UUID;
-use raklib\RakLib;
 
 class ServerPlayerNetworkSession implements NetworkSession{
 
@@ -535,7 +535,24 @@ class ServerPlayerNetworkSession implements NetworkSession{
 	}
 
 	public function handleInteract(InteractPacket $packet) : bool{
-		return false;
+		$entity = $this->player->getLevel()->getEntity($packet->target);
+
+		if($entity !== null){
+			switch($packet->action){
+				case InteractPacket::ACTION_LEFT_CLICK:
+					$this->player->attackEntity($entity);
+					break;
+				case InteractPacket::ACTION_RIGHT_CLICK:
+				case InteractPacket::ACTION_LEAVE_VEHICLE:
+				case InteractPacket::ACTION_MOUSEOVER:
+					break; //TODO: handle these
+				default:
+					$this->server->getLogger()->debug("Unhandled/unknown interaction type " . $packet->action . "received from ". $this->getName());
+					return false;
+			}
+		}
+
+		return true;
 	}
 
 	public function handleBlockPickRequest(BlockPickRequestPacket $packet) : bool{
@@ -543,6 +560,12 @@ class ServerPlayerNetworkSession implements NetworkSession{
 	}
 
 	public function handleUseItem(UseItemPacket $packet) : bool{
+		if($packet->face === -1){
+			return $this->player->rightClickAir($packet->item, $packet->slot);
+		}elseif($packet->face >= 0 and $packet->face <= 5){
+			return $this->player->rightClickBlock($packet->item, $packet->slot, new Vector3($packet->x, $packet->y, $packet->z), $packet->face, new Vector3($packet->fx, $packet->fy, $packet->fz));
+		}
+
 		return false;
 	}
 

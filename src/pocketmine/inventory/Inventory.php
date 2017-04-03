@@ -208,6 +208,7 @@ interface Inventory{
 
 	/**
 	 * @param Player $who
+	 * @param bool   $isClientSide used to prevent feedback loops between client/server.
 	 */
 	public function onClose(Player $who, bool $isClientSide = false);
 

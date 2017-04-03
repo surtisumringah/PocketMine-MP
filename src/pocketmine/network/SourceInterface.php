@@ -36,10 +36,10 @@ interface SourceInterface{
 	/**
 	 * Sends a DataPacket to the interface, returns an unique identifier for the packet if $needACK is true
 	 *
-	 * @param Player     $session
-	 * @param DataPacket $packet
-	 * @param bool       $needACK
-	 * @param bool       $immediate
+	 * @param NetworkSession $session
+	 * @param DataPacket     $packet
+	 * @param bool           $needACK
+	 * @param bool           $immediate
 	 *
 	 * @return int
 	 */
@@ -48,8 +48,8 @@ interface SourceInterface{
 	/**
 	 * Terminates the connection
 	 *
-	 * @param Player $session
-	 * @param string $reason
+	 * @param NetworkSession $session
+	 * @param string         $reason
 	 *
 	 */
 	public function close(NetworkSession $session, $reason = "unknown reason");

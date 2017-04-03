@@ -43,6 +43,8 @@ abstract class Living extends Entity implements Damageable{
 
 	protected $invisible = false;
 
+	protected $jumpVelocity = 0.42;
+
 	protected function initEntity(){
 		parent::initEntity();
 
@@ -113,6 +115,23 @@ abstract class Living extends Entity implements Damageable{
 		}
 
 		$this->attackTime = 0;
+	}
+
+	/**
+	 * Returns the initial upwards velocity of a jumping entity in blocks/tick, including additional velocity due to effects.
+	 * @return float
+	 */
+	public function getJumpVelocity() : float{
+		return $this->jumpVelocity + ($this->hasEffect(Effect::JUMP) ? (($this->getEffect(Effect::JUMP)->getAmplifier() + 1) / 10) : 0);
+	}
+
+	/**
+	 * Called when the entity jumps from the ground. This method adds upwards velocity to the entity.
+	 */
+	public function jump(){
+		if($this->onGround){
+			$this->motionY = $this->getJumpVelocity(); //Y motion should already be 0 if we're jumping from the ground.
+		}
 	}
 
 	public function attack($damage, EntityDamageEvent $source){

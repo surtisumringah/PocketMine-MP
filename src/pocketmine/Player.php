@@ -2690,6 +2690,7 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 				$this->scheduleUpdate();
 				break;
 			case PlayerActionPacket::ACTION_JUMP:
+				$this->jump();
 				return true;
 			case PlayerActionPacket::ACTION_START_SPRINT:
 				$ev = new PlayerToggleSprintEvent($this, true);

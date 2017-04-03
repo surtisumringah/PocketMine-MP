@@ -99,6 +99,11 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		$this->skinId = $skinId;
 	}
 
+	public function jump(){
+		parent::jump();
+		$this->exhaust($this->isSprinting() ? 0.2 : 0.05);
+	}
+
 	public function getFood() : float{
 		return $this->attributeMap->getAttribute(Attribute::HUNGER)->getValue();
 	}
